@@ -1,7 +1,40 @@
-import { Controller, Get, Post,Patch,Delete, Body, Param, HttpStatus, HttpCode, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, HttpStatus, HttpCode, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { CoffeesService } from './coffees.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { IsOptional, IsString, IsDateString, IsArray, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class SearchCoffeesDto {
+  @IsOptional()
+  @IsDateString()
+  start_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  tags?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  offset?: number;
+}
 
 @Controller('coffees')
 export class CoffeesController {
@@ -13,23 +46,16 @@ export class CoffeesController {
   }
 
   @Get('search')
-  async search(
-    @Query('start_date') start_date?: string,
-    @Query('end_date') end_date?: string,
-    @Query('name') name?: string,
-    @Query('tags') tags?: string,
-    @Query('limit') limit = 10,
-    @Query('offset') offset = 0,
-  ) {
-    const tagsList = tags ? tags.split(',') : [];
+  async search(@Query() searchParams: SearchCoffeesDto) {
+    const { start_date, end_date, name, tags, limit = 10, offset = 0 } = searchParams;
     
     return this.coffeesService.searchCoffees({
       start_date: start_date ? new Date(start_date) : undefined,
       end_date: end_date ? new Date(end_date) : undefined,
       name,
-      tags: tagsList,
-      limit: +limit,
-      offset: +offset,
+      tags: tags ? tags.split(',') : [],
+      limit,
+      offset,
     });
   }
 

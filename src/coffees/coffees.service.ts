@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
 import { Coffee } from './entities/coffee.entity';
+import { CoffeeResponseDto } from './dto/coffee-response.dto';
 
 @Injectable()
 export class CoffeesService {
@@ -19,7 +20,7 @@ export class CoffeesService {
       },
     });
 
-    return coffees.map(coffee => ({
+    return coffees.map(coffee => CoffeeResponseDto.fromEntity({
       ...coffee,
       tags: coffee.tags.map(coffeeTag => coffeeTag.tag),
     }));
@@ -41,16 +42,16 @@ export class CoffeesService {
       throw new NotFoundException(`Coffee with ID ${id} not found`);
     }
 
-    return {
+    return CoffeeResponseDto.fromEntity({
       ...coffee,
       tags: coffee.tags.map(coffeeTag => coffeeTag.tag),
-    };
+    });
   }
 
   async create(createCoffeeDto: CreateCoffeeDto) {
     const { name, description, price, imageUrl, tags } = createCoffeeDto;
 
-    return this.prisma.coffee.create({
+    const coffee = await this.prisma.coffee.create({
       data: {
         name,
         description,
@@ -75,17 +76,17 @@ export class CoffeesService {
         },
       },
     });
+
+    return CoffeeResponseDto.fromEntity({
+      ...coffee,
+      tags: coffee.tags.map(coffeeTag => coffeeTag.tag),
+    });
   }
 
   async update(id: string, updateCoffeeDto: UpdateCoffeeDto) {
-    await this.prisma.coffee.deleteMany({
-      where: { coffeeId: id },
-    });
-
-    // Atualizar os dados do café
-    return this.prisma.coffee.update({
+    const coffee = await this.prisma.coffee.update({
       where: { id },
-      data: [], // seu dados atualziados iserir aqui
+      data: updateCoffeeDto,
       include: {
         tags: {
           include: {
@@ -94,20 +95,20 @@ export class CoffeesService {
         },
       },
     });
+
+    return CoffeeResponseDto.fromEntity({
+      ...coffee,
+      tags: coffee.tags.map(coffeeTag => coffeeTag.tag),
+    });
   }
 
   async remove(id: string) {
     const coffee = await this.prisma.coffee.findUnique({ where: { id } });
-  if (!coffee) {
-    throw new NotFoundException(`Coffee with ID ${id} not found`);
-  }
+    if (!coffee) {
+      throw new NotFoundException(`Coffee with ID ${id} not found`);
+    }
 
-  // remover os relacionamentos antes de deletar
-  await this.prisma.coffee.deleteMany({
-    where: { coffeeId: id },
-  });
-
-  await this.prisma.coffee.delete({ where: { id } });
+    await this.prisma.coffee.delete({ where: { id } });
   }
 
   async searchCoffees(params: {
@@ -121,27 +122,72 @@ export class CoffeesService {
     const { start_date, end_date, name, tags, limit = 10, offset = 0 } = params;
 
     // Construir o filtro
+    const where: any = {};
 
     // Filtro por data
+    if (start_date || end_date) {
+      where.createdAt = {};
+      if (start_date) {
+        where.createdAt.gte = start_date;
+      }
+      if (end_date) {
+        where.createdAt.lte = end_date;
+      }
+    }
 
     // Filtro por nome
+    if (name) {
+      where.name = {
+        contains: name,
+        mode: 'insensitive',
+      };
+    }
 
     // Filtro por tags
+    if (tags && tags.length > 0) {
+      where.tags = {
+        some: {
+          tag: {
+            name: {
+              in: tags,
+            },
+          },
+        },
+      };
+    }
 
     // Buscar os cafés com paginação
+    const [coffees, total] = await Promise.all([
+      this.prisma.coffee.findMany({
+        where,
+        include: {
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+        },
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.coffee.count({ where }),
+    ]);
 
     // Formatar a resposta
     return {
-      data: [],
+      data: coffees.map(coffee => CoffeeResponseDto.fromEntity({
+        ...coffee,
+        tags: coffee.tags.map(coffeeTag => coffeeTag.tag),
+      })),
       pagination: {
-        total: [],
+        total,
         limit,
         offset,
-        hasMore: offset,
+        hasMore: offset + limit < total,
       },
     };
   }
-
-
-
 } 
