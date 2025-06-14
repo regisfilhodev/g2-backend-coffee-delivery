@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, HttpStatus, HttpCode, Query } from '@nestjs/common';
+import { Controller, Get, Post,Patch,Delete, Body, Param, HttpStatus, HttpCode, Query } from '@nestjs/common';
 import { CoffeesService } from './coffees.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
+import { UpdateCoffeeDto } from './dto/update-coffee.dto';
 
 @Controller('coffees')
 export class CoffeesController {
@@ -44,4 +45,26 @@ export class CoffeesController {
   }
 
   // adicionar outro endpoints
+  @Post('/coffee')
+  createCoffee(@Body() coffee: CreateCoffeeDto) {
+    return this.coffeesService.create(coffee);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() updateCoffeeDto: UpdateCoffeeDto,
+  ) {
+    const updatedCoffee = await this.coffeesService.update(id, updateCoffeeDto);
+    return {
+      message: 'Café atualizado com sucesso',
+      data: updatedCoffee,
+    };
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string) {
+    await this.coffeesService.remove(id);
+  }
 } 

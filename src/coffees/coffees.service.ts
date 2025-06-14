@@ -2,10 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { Coffee } from './entities/coffee.entity';
 
 @Injectable()
 export class CoffeesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll() {
     const coffees = await this.prisma.coffee.findMany({
@@ -47,13 +48,39 @@ export class CoffeesService {
   }
 
   async create(createCoffeeDto: CreateCoffeeDto) {
-    // código aqui
+    const { name, description, price, imageUrl, tags } = createCoffeeDto;
 
-    // return this.prisma.coffee.create({data: {}});
+    return this.prisma.coffee.create({
+      data: {
+        name,
+        description,
+        price,
+        imageUrl,
+        tags: {
+          create: tags.map(tagName => ({
+            tag: {
+              connectOrCreate: {
+                where: { name: tagName },
+                create: { name: tagName },
+              },
+            },
+          })),
+        },
+      },
+      include: {
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+    });
   }
 
   async update(id: string, updateCoffeeDto: UpdateCoffeeDto) {
-    // código de implementação aqui
+    await this.prisma.coffee.deleteMany({
+      where: { coffeeId: id },
+    });
 
     // Atualizar os dados do café
     return this.prisma.coffee.update({
@@ -70,9 +97,17 @@ export class CoffeesService {
   }
 
   async remove(id: string) {
-    //  1 - Verificar se o café existe
+    const coffee = await this.prisma.coffee.findUnique({ where: { id } });
+  if (!coffee) {
+    throw new NotFoundException(`Coffee with ID ${id} not found`);
+  }
 
-    // 2 - Remover o café
+  // remover os relacionamentos antes de deletar
+  await this.prisma.coffee.deleteMany({
+    where: { coffeeId: id },
+  });
+
+  await this.prisma.coffee.delete({ where: { id } });
   }
 
   async searchCoffees(params: {
@@ -106,4 +141,7 @@ export class CoffeesService {
       },
     };
   }
+
+
+
 } 

@@ -14,51 +14,97 @@ datasource db {
 }
 
 model Coffee {
-  id          String     @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   description String
-  price       Decimal    @db.Decimal(10, 2)
-  imageUrl    String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
-  // Relacionamentos incompleto
-  tags        
-  cartItems  // 
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String   @map("image_url")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  tags      CoffeeTag[]
+  cartItems CartItem[]
 }
 
 model Tag {
-  id        String      @id @default(uuid())
-  name      String      @unique
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  
-  // Relacionamentos 
-  coffees   CoffeeTag[]
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  coffees CoffeeTag[]
 }
 
 model CoffeeTag {
-  coffeeId  String
-  tagId     String
-  // Relacionamentos aqui
+  coffeeId String
+  tagId    String
+
+  coffee Coffee @relation(fields: [coffeeId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([coffeeId, tagId])
 }
 
 model Cart {
-  id        String     @id @default(uuid())
-  userId    String?    // Opcional para usuários não autenticados
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  
-  // Relacionamentos incompleto
-  items     CartItem[]
+  id                String        @id @default(uuid())
+  status            CartStatus
+  statusPayment     PaymentStatus @map("status_payment")
+  dateTimeCompleted DateTime?     @map("data_time_completed")
+  userId            String?  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relacionamentos
+  user User? @relation(fields: [userId], references: [id])
+
+  items CartItem[]
+
+  Order Order[]
+}
+
+model User {
+  id    String @id @default(uuid())
+  carts Cart[]
 }
 
 model CartItem {
-  id         String   @id @default(uuid())
-  quantity   Int
-  unitPrice  Decimal  @db.Decimal(10, 2)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  // Relacionamentos aqui
+  id        String   @id @default(uuid())
+  quantity  Int      @db.SmallInt
+  unitPrice Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coffee   Coffee @relation(fields: [coffeeId], references: [id], onDelete: Cascade)
+  coffeeId String
+
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId String
+}
+
+model Order {
+  id          String        @id @default(uuid())
+  cartId      String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  totalItems  Int
+  shippingFee Decimal       @db.Decimal(10, 2)
+  totalAmount Decimal       @db.Decimal(10, 2)
+  status      PaymentStatus
+
+  cart Cart @relation(fields: [cartId], references: [id])
+}
+
+enum CartStatus {
+  ABANDONADO
+  AGUARDANDO_PAGAMENTO
+  FINALIZADO
+}
+
+enum PaymentStatus {
+  APROVADO
+  ANALISE
+  PENDENTE
+  CANCELADO
 }

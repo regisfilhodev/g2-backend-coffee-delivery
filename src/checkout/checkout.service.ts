@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class CheckoutService {
@@ -23,6 +24,7 @@ export class CheckoutService {
         totalItems: 10,
         shippingFee: 1,
         totalAmount: 2,
+        status: PaymentStatus.PENDENTE,
         // Aqui você poderia salvar também o endereço e método de pagamento
         // em modelos adicionais relacionados ao pedido
       },
